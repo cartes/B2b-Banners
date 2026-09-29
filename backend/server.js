@@ -223,9 +223,16 @@ fastify.get("/api/productos", async (request, reply) => {
 // Arranque del Servidor
 // ==========================================
 
-const port = Number(PORT);
+const rawPort = process.env.PORT || PORT || 3000;
+const listenOptions = isNaN(Number(rawPort))
+    ? { path: rawPort }
+    : { port: Number(rawPort), host: "0.0.0.0" };
 
-fastify.listen({ port, host: "0.0.0.0" }).then(() => {
-    console.log(`Backend escuchando en http://localhost:${port}`);
+fastify.listen(listenOptions).then(() => {
+    const address = typeof listenOptions.port !== "undefined"
+        ? `http://localhost:${listenOptions.port}`
+        : listenOptions.path;
+    console.log(`Backend escuchando en ${address}`);
 });
+
 
