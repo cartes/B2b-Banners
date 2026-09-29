@@ -1,0 +1,191 @@
+/*
+ * Maqueta de los portales (components/site/*). Reproduce el tema común de
+ * mch.cl, aqua.cl y revistaei.cl: fondo blanco, Montserrat, barras de
+ * sección en el color primario del portal y placeholders grises para el
+ * contenido editorial. Siempre en claro: representa la página publicada,
+ * no la interfaz de la herramienta.
+ */
+.site {
+  --site-bg: #ffffff;
+  --site-text: #121212;
+  --site-muted: #777777;
+  --site-ph: #ececec;
+  --site-ph-strong: #d6d6d6;
+  --site-band: #eaeaea;
+  --site-rule: #dddddd;
+
+  font-family: 'Montserrat', system-ui, sans-serif;
+  color: var(--site-text);
+  background: var(--site-bg);
+  line-height: 1.35;
+  color-scheme: light;
+}
+
+.site-bar {
+  background: var(--portal-accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 7px 10px;
+}
+
+.site-tabtitle {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--site-ph-strong);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.site-tabtitle > span:first-child {
+  padding: 6px 14px;
+  border: 1px solid var(--site-ph-strong);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  margin-bottom: -1px;
+  background: var(--site-bg);
+}
+
+.site-tabtitle > span:last-child {
+  color: var(--portal-accent);
+  font-size: 11px;
+  padding-bottom: 4px;
+}
+
+.site-img {
+  background: var(--site-ph);
+  aspect-ratio: 16 / 10;
+}
+
+.site-date {
+  width: 58px;
+  height: 7px;
+  background: var(--portal-accent);
+  opacity: 0.75;
+}
+
+.site-line {
+  height: 8px;
+  background: var(--site-ph-strong);
+}
+
+.site-line.is-title {
+  height: 11px;
+  background: #bdbdbd;
+}
+
+.site-line.is-short {
+  width: 55%;
+}
+
+.site-line.is-mid {
+  width: 80%;
+}
+
+.site-note {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.site-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.site-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.site-grid.cols-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.site-grid.cols-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.site-grid.cols-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.site-grid.cols-6 {
+  grid-template-columns: repeat(6, 1fr);
+}
+
+.site-cover {
+  background: #1b1b1b;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.site-cover .site-bar {
+  background: none;
+  padding: 0;
+}
+
+.site-cover-img {
+  width: 68%;
+  margin: 0 auto;
+  aspect-ratio: 3 / 4;
+  background: linear-gradient(var(--portal-accent) 0 20%, #cfcfcf 20% 100%);
+}
+
+.site-button {
+  align-self: center;
+  background: var(--portal-accent-dark);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 999px;
+}
+
+/* Banner de ancho completo entre bloques editoriales. */
+.site-divider {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
+  border-top: 1px solid var(--site-rule);
+  border-bottom: 1px solid var(--site-rule);
+}
+
+.site-footer {
+  background: #1b1b1b;
+  padding: 22px 24px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+
+.site-footer .site-line {
+  background: #444;
+}
+
+/* Aviso flotante pegado al borde inferior ("Cerrar Aviso [X]"). */
+.site-float {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  padding: 26px 0 12px;
+  background: linear-gradient(transparent, rgb(0 0 0 / 0.08));
+}
+
+.site-float-close {
+  position: absolute;
+  top: 6px;
+  right: calc(50% - var(--float-w) / 2);
+  background: #111;
+  color: #fff;
+  font-size: 10px;
+  padding: 2px 8px;
+}
