@@ -19,6 +19,7 @@ const props = defineProps({
   portalId: { type: String, required: true },
 })
 
+// useCatalog gestiona la consulta a /api/productos (ver src/composables/useCatalog.js y src/api/productos.js)
 const { status, error, load } = useCatalog()
 
 // App.vue remonta esta vista al cambiar de portal (:key en RouterView),

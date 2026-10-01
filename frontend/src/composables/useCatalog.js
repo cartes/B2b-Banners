@@ -10,12 +10,15 @@ const raw = ref([])
 const status = ref('idle') // idle | loading | ready | error
 const error = ref(null)
 
+// Modo de API (opcional: quitar 'mode=mock' para usar el modo por defecto del servidor o cambiar a 'live')
+const API_MODE = import.meta.env.VITE_API_MODE || undefined
+
 async function load() {
   if (status.value === 'loading' || status.value === 'ready') return
   status.value = 'loading'
   error.value = null
   try {
-    const body = await fetchProductos({ mode: 'mock', n: 1000 })
+    const body = await fetchProductos({ n: 1000, ...(API_MODE ? { mode: API_MODE } : {}) })
     raw.value = body.productos
     status.value = 'ready'
   } catch (err) {
