@@ -22,6 +22,10 @@ const pctVendido = computed(() => {
         <dt>Vendidos</dt>
         <dd>{{ summary.vendidos }}</dd>
       </div>
+      <div v-if="summary.compartidos" class="stat stat-shared">
+        <dt>Compartidos</dt>
+        <dd>{{ summary.compartidos }}</dd>
+      </div>
       <div class="stat">
         <dt>Disponibles</dt>
         <dd>{{ summary.disponibles }}</dd>
@@ -68,6 +72,10 @@ const pctVendido = computed(() => {
 
 .stat-sold dd {
   color: var(--portal-accent);
+}
+
+.stat-shared dd {
+  color: var(--color-shared, #15803d);
 }
 
 .meter {

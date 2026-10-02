@@ -20,6 +20,11 @@
   --space-5: 24px;
   --space-6: 32px;
   --space-7: 48px;
+
+  /* Avisos compartidos (50% / dos clientes en la misma posición) */
+  --color-shared: #15803d;
+  --color-shared-soft: #dcfce7;
+  --color-shared-ink: #14532d;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -31,6 +36,9 @@
     --ink-faint: #83827c;
     --line: #38393d;
     --line-strong: #4c4d51;
+    --color-shared: #22c55e;
+    --color-shared-soft: #14532d;
+    --color-shared-ink: #f0fdf4;
   }
 }
 
@@ -42,4 +50,7 @@
   --ink-faint: #83827c;
   --line: #38393d;
   --line-strong: #4c4d51;
+  --color-shared: #22c55e;
+  --color-shared-soft: #14532d;
+  --color-shared-ink: #f0fdf4;
 }

@@ -9,6 +9,7 @@ const props = defineProps({
 })
 
 const isSold = computed(() => props.slot.status === 'vendido')
+const isShared = computed(() => props.slot.status === 'compartido')
 
 // Miniatura proporcional al tamaño real del aviso (si se conoce), acotada
 // a una caja de 44x32 — el mismo recurso visual que usa el media kit
@@ -36,7 +37,7 @@ function formatUbicacion(u) {
 <template>
   <article
     class="slot"
-    :class="{ 'is-sold': isSold, 'is-bonus': slot.isBonus, 'is-compact': compact, 'is-dimmed': dimmed }"
+    :class="{ 'is-sold': isSold, 'is-shared': isShared, 'is-bonus': slot.isBonus, 'is-compact': compact, 'is-dimmed': dimmed }"
     :aria-describedby="isActive ? 'ad-tooltip' : undefined"
     tabindex="0"
     @mouseenter="show(slot, $event.currentTarget)"
@@ -47,13 +48,23 @@ function formatUbicacion(u) {
     <header class="slot-head">
       <span class="slot-formato">{{ slot.formato }}</span>
       <span v-if="slot.isBonus" class="slot-bonus-tag">Bonificación</span>
+      <span v-else-if="isShared" class="slot-shared-tag">Compartido 50%</span>
     </header>
 
     <div class="slot-body">
       <div class="swatch" :style="swatchStyle" aria-hidden="true" />
 
       <div class="slot-info">
-        <template v-if="isSold">
+        <template v-if="isShared">
+          <div v-for="(cli, idx) in slot.clientes" :key="idx" class="slot-shared-client">
+            <p class="slot-empresa">
+              {{ cli.empresa }}
+              <span class="slot-pct-tag">{{ cli.porcentaje ?? 50 }}%</span>
+            </p>
+            <p v-if="cli.ejecutivo" class="slot-ejecutivo">{{ cli.ejecutivo }}</p>
+          </div>
+        </template>
+        <template v-else-if="isSold">
           <p class="slot-empresa">{{ slot.empresa }}</p>
           <p class="slot-ejecutivo">{{ slot.ejecutivo }}</p>
         </template>
@@ -79,11 +90,12 @@ function formatUbicacion(u) {
   min-height: 132px;
 }
 
-.slot.is-sold {
+.slot.is-sold,
+.slot.is-shared {
   border-color: transparent;
 }
 
-.slot:not(.is-sold) {
+.slot:not(.is-sold):not(.is-shared) {
   border-style: dashed;
 }
 
@@ -122,7 +134,11 @@ function formatUbicacion(u) {
   background: var(--portal-accent);
 }
 
-.slot:not(.is-sold) .slot-head {
+.slot.is-shared .slot-head {
+  background: var(--color-shared, #15803d);
+}
+
+.slot:not(.is-sold):not(.is-shared) .slot-head {
   background: var(--portal-accent-soft);
   color: var(--portal-accent-ink);
 }
@@ -135,11 +151,15 @@ function formatUbicacion(u) {
   line-height: 1.2;
 }
 
-.slot-bonus-tag {
+.slot-bonus-tag,
+.slot-shared-tag {
   flex-shrink: 0;
   font-size: 10px;
   font-family: var(--font-mono);
-  opacity: 0.85;
+  opacity: 0.95;
+  background: rgba(255, 255, 255, 0.25);
+  padding: 1px 4px;
+  border-radius: 2px;
 }
 
 .slot-body {
@@ -161,6 +181,11 @@ function formatUbicacion(u) {
   border-color: var(--portal-accent);
 }
 
+.is-shared .swatch {
+  background: var(--color-shared, #15803d);
+  border-color: var(--color-shared, #15803d);
+}
+
 .slot-info {
   min-width: 0;
 }
@@ -176,6 +201,24 @@ function formatUbicacion(u) {
   margin-top: 2px;
   font-size: 12px;
   color: var(--ink-soft);
+}
+
+.slot-shared-client:not(:first-child) {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px dashed var(--line);
+}
+
+.slot-pct-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--color-shared, #15803d);
+  background: var(--color-shared-soft, #dcfce7);
+  padding: 0 4px;
+  border-radius: 2px;
+  margin-left: 4px;
 }
 
 .slot-disponible {

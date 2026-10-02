@@ -9,6 +9,7 @@ defineEmits(['update:query', 'update:statusFilter'])
 const STATUS_OPTIONS = [
   { value: 'todos', label: 'Todos' },
   { value: 'vendido', label: 'Vendidos' },
+  { value: 'compartido', label: 'Compartidos (50%)' },
   { value: 'disponible', label: 'Disponibles' },
 ]
 </script>

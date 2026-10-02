@@ -75,10 +75,18 @@ const sectionsWithCount = computed(() =>
 const hasActiveFilter = computed(() => statusFilter.value !== 'todos' || query.value.trim() !== '')
 
 function matchesFilter(slot) {
-  if (statusFilter.value !== 'todos' && slot.status !== statusFilter.value) return false
+  if (statusFilter.value === 'vendido') {
+    if (slot.status !== 'vendido' && slot.status !== 'compartido') return false
+  } else if (statusFilter.value === 'compartido') {
+    if (slot.status !== 'compartido') return false
+  } else if (statusFilter.value === 'disponible') {
+    if (slot.status !== 'disponible') return false
+  }
   const q = query.value.trim().toLowerCase()
   if (q) {
-    const haystack = `${slot.empresa ?? ''} ${slot.ejecutivo ?? ''} ${slot.formato} ${slot.label ?? ''}`.toLowerCase()
+    const empresas = slot.clientes?.map((c) => c.empresa).join(' ') ?? slot.empresa ?? ''
+    const ejecutivos = slot.clientes?.map((c) => c.ejecutivo).join(' ') ?? slot.ejecutivo ?? ''
+    const haystack = `${empresas} ${ejecutivos} ${slot.formato} ${slot.label ?? ''}`.toLowerCase()
     if (!haystack.includes(q)) return false
   }
   return true
@@ -195,6 +203,7 @@ const noResults = computed(() => {
         <SectionTabs v-model:active="activeSection" :sections="sectionsWithCount" />
         <div class="legend">
           <span class="legend-item"><span class="legend-swatch is-sold" /> Vendido en la edición {{ edicion }}</span>
+          <span class="legend-item"><span class="legend-swatch is-shared" /> Compartido (dos clientes al 50%)</span>
           <span class="legend-item"><span class="legend-swatch is-free" /> Disponible</span>
           <span class="legend-hint">Pasa el cursor sobre un aviso para ver su estado, formato e historial de ventas.</span>
         </div>
@@ -238,7 +247,7 @@ const noResults = computed(() => {
 
       <section v-if="newsletter" class="section-block">
         <h2 class="section-title">{{ sectionMeta('newsletter').label }}</h2>
-        <NewsletterSkeleton :slots="newsletter" :match-ids="matchIds" />
+        <NewsletterSkeleton :slots="newsletter" :portal="portal" :edition="edicion" :match-ids="matchIds" />
       </section>
 
       <section v-for="group in listGroups" :key="group.section.id" class="section-block">
@@ -404,6 +413,10 @@ const noResults = computed(() => {
 
 .legend-swatch.is-sold {
   background: var(--portal-accent);
+}
+
+.legend-swatch.is-shared {
+  background: var(--color-shared, #15803d);
 }
 
 .legend-swatch.is-free {

@@ -85,25 +85,59 @@ export function usePortalInventory(portal, edicionElegida) {
       if (!inventario.has(key)) inventario.set(key, { formato: p.formato, ubicacion: p.ubicacion, enHistorico: false })
     }
 
-    const vendidosEdicion = new Map()
-    // Ventas por posición en todo el histórico: una por edición, la más
-    // reciente primero (para el globo de información del aviso).
+    const ventasEdicionPorKey = new Map()
+    // Ventas por posición en todo el histórico agrupadas por edición
     const historial = new Map()
     for (const p of productos.value) {
       const key = slotKey(p.Formato, p.Ubicacion)
-      if (p.Edicion === edicion.value) vendidosEdicion.set(key, p)
+      if (Number(p.Edicion) === Number(edicion.value)) {
+        if (!ventasEdicionPorKey.has(key)) ventasEdicionPorKey.set(key, [])
+        ventasEdicionPorKey.get(key).push(p)
+      }
       if (!historial.has(key)) historial.set(key, new Map())
-      historial.get(key).set(p.Edicion, p)
+      const edMap = historial.get(key)
+      const edNum = Number(p.Edicion)
+      if (!edMap.has(edNum)) edMap.set(edNum, [])
+      edMap.get(edNum).push(p)
     }
 
     return [...inventario]
       .map(([key, { formato, ubicacion, enHistorico }]) => {
-        const venta = vendidosEdicion.get(key)
-        const ventas = [...(historial.get(key)?.values() ?? [])].sort((a, b) => b.Edicion - a.Edicion)
-        const anterior = ventas.find((v) => v.Edicion < edicion.value)
-        const posterior = ventas.findLast((v) => v.Edicion > edicion.value)
+        const ventas = ventasEdicionPorKey.get(key) ?? []
+
+        // Historial consolidado por edición para el tooltip
+        const edMap = historial.get(key) ?? new Map()
+        const ventasHistoricas = [...edMap.entries()]
+          .map(([edNum, items]) => {
+            const emps = [...new Set(items.map((i) => i.Empresa?.trim()).filter(Boolean))]
+            const esComp = emps.length > 1 || items.some((i) => i.compartido)
+            return {
+              edicion: edNum,
+              empresa: emps.join(' / '),
+              ejecutivo: [...new Set(items.map((i) => i.Ejecutivo?.trim()).filter(Boolean))].join(', '),
+              esCompartido: esComp,
+            }
+          })
+          .sort((a, b) => b.edicion - a.edicion)
+
+        const anterior = ventasHistoricas.find((v) => v.edicion < edicion.value)
+        const posterior = ventasHistoricas.findLast((v) => v.edicion > edicion.value)
         const position = layoutByKey.get(key)
         const { section, isBonus } = classifyFormato(formato)
+
+        // Detección de avisos compartidos (dos o más clientes distintos en la misma posición)
+        const empresasUnicas = [...new Set(ventas.map((v) => v.Empresa?.trim()).filter(Boolean))]
+        const esCompartido = empresasUnicas.length > 1 || ventas.some((v) => v.compartido)
+        const esVendido = ventas.length > 0
+        const status = esCompartido ? 'compartido' : esVendido ? 'vendido' : 'disponible'
+
+        const pct = esCompartido ? Math.round(100 / ventas.length) : 100
+        const clientes = ventas.map((v) => ({
+          empresa: v.Empresa,
+          ejecutivo: v.Ejecutivo,
+          porcentaje: v.porcentaje ?? pct,
+        }))
+
         return {
           id: key,
           formato,
@@ -113,16 +147,18 @@ export function usePortalInventory(portal, edicionElegida) {
           label: position?.label ?? null,
           dims: position?.dims ?? lookupDims(formato),
           enHistorico,
-          status: venta ? 'vendido' : 'disponible',
-          empresa: venta?.Empresa ?? null,
-          ejecutivo: venta?.Ejecutivo ?? null,
+          status,
+          compartido: esCompartido,
+          clientes,
+          empresa: empresasUnicas.join(' / ') || null,
+          ejecutivo: [...new Set(ventas.map((v) => v.Ejecutivo?.trim()).filter(Boolean))].join(', ') || null,
           edicion: edicion.value,
-          edicionesVendidas: ventas.length,
+          edicionesVendidas: ventasHistoricas.length,
           ventaAnterior: anterior
-            ? { edicion: anterior.Edicion, empresa: anterior.Empresa, ejecutivo: anterior.Ejecutivo }
+            ? { edicion: anterior.edicion, empresa: anterior.empresa, ejecutivo: anterior.ejecutivo, compartido: anterior.esCompartido }
             : null,
           ventaPosterior: posterior
-            ? { edicion: posterior.Edicion, empresa: posterior.Empresa, ejecutivo: posterior.Ejecutivo }
+            ? { edicion: posterior.edicion, empresa: posterior.empresa, ejecutivo: posterior.ejecutivo, compartido: posterior.esCompartido }
             : null,
         }
       })
@@ -148,8 +184,10 @@ export function usePortalInventory(portal, edicionElegida) {
   const summary = computed(() => {
     const vigentes = slots.value.filter((s) => s.section !== 'anteriores')
     const total = vigentes.length
-    const vendidos = vigentes.filter((s) => s.status === 'vendido').length
-    return { total, vendidos, disponibles: total - vendidos }
+    const compartidos = vigentes.filter((s) => s.status === 'compartido').length
+    const soloVendidos = vigentes.filter((s) => s.status === 'vendido').length
+    const vendidos = soloVendidos + compartidos
+    return { total, vendidos, compartidos, disponibles: total - vendidos }
   })
 
   return { edicion, ediciones, slots, pages, placedIds, summary }

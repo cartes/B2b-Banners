@@ -1,11 +1,11 @@
 // Dentro de newsletter, el nombrado ya trae la letra de familia:
-// PORTAL-NEWSLETTER-F (banner superior), -SPONSOR (logos junto al primer F),
-// -K (banner de sección) y -L (rectángulos bajo cada sección K).
+// PORTAL-NEWSLETTER-F (banner superior), -SPONSOR (junto a la noticia principal),
+// -K (banner entre noticias) y -L (rectángulos en la columna derecha).
 export function classifyNewsletterFamily(formatoRaw) {
-  const f = formatoRaw.toUpperCase().replace(/^BONIFICACION\s+/, '').trim()
+  const f = String(formatoRaw).toUpperCase().replace(/^BONIFICACION\s+/, '').trim()
   if (f.endsWith('SPONSOR')) return 'sponsor'
-  if (f.endsWith('-F')) return 'f'
-  if (f.endsWith('-K')) return 'k'
-  if (f.endsWith('-L')) return 'l'
+  if (f.endsWith('-F') || /\bNF\d*\b/.test(f)) return 'f'
+  if (f.endsWith('-K') || /\bNK\d*\b/.test(f)) return 'k'
+  if (f.endsWith('-L') || /\bNL\d*\b/.test(f)) return 'l'
   return 'other'
 }

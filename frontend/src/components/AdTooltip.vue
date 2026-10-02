@@ -10,6 +10,7 @@ const pos = ref({ top: 0, left: 0, placement: 'top', arrow: 0 })
 
 const slot = computed(() => active.value?.slot ?? null)
 const isSold = computed(() => slot.value?.status === 'vendido')
+const isShared = computed(() => slot.value?.status === 'compartido')
 
 const ubicacion = computed(() => {
   const u = String(slot.value?.ubicacion ?? '')
@@ -42,13 +43,20 @@ function place() {
   const vw = document.documentElement.clientWidth
   const vh = window.innerHeight
 
-  // Arriba del aviso si cabe; si no, abajo; si tampoco, pegado al borde.
+  // Ubica el globo junto al aviso. Si no cabe ni arriba ni abajo, lo centra
+  // verticalmente en la pantalla para mantenerlo completo y legible.
   let placement = 'top'
   let top = r.top - b.height - GAP
-  if (top < MARGIN) {
+  const fitsAbove = top >= MARGIN
+  const belowTop = r.bottom + GAP
+  const fitsBelow = belowTop + b.height <= vh - MARGIN
+
+  if (!fitsAbove && fitsBelow) {
     placement = 'bottom'
-    top = r.bottom + GAP
-    if (top + b.height > vh - MARGIN) top = Math.max(MARGIN, vh - b.height - MARGIN)
+    top = belowTop
+  } else if (!fitsAbove && !fitsBelow) {
+    placement = r.top + r.height / 2 > vh / 2 ? 'top' : 'bottom'
+    top = Math.max(MARGIN, (vh - b.height) / 2)
   }
 
   const center = r.left + r.width / 2
@@ -85,7 +93,7 @@ onBeforeUnmount(() => {
     id="ad-tooltip"
     ref="bubble"
     class="tip"
-    :class="[`tip--${pos.placement}`, isSold ? 'is-sold' : 'is-free']"
+    :class="[`tip--${pos.placement}`, isShared ? 'is-shared' : isSold ? 'is-sold' : 'is-free']"
     :style="{ top: `${pos.top}px`, left: `${pos.left}px`, '--arrow-x': `${pos.arrow}px` }"
     role="tooltip"
   >
@@ -95,14 +103,26 @@ onBeforeUnmount(() => {
         <strong>{{ slot.label ?? slot.formato }}</strong>
         <span>{{ sectionMeta(slot.section)?.label }}</span>
       </div>
-      <span class="tip-status">{{ isSold ? 'Vendido' : 'Disponible' }}</span>
+      <span class="tip-status">{{ isShared ? 'Compartido (50%)' : isSold ? 'Vendido' : 'Disponible' }}</span>
     </header>
 
     <div class="tip-body">
-      <div v-if="isSold" class="tip-sale">
+      <!-- Aviso compartido: dos clientes al 50% -->
+      <div v-if="isShared" class="tip-sale tip-shared">
+        <div v-for="(cli, idx) in slot.clientes" :key="idx" class="tip-shared-client">
+          <div class="tip-shared-header">
+            <span class="tip-company">{{ cli.empresa }}</span>
+            <span class="tip-pct-badge">{{ cli.porcentaje ?? 50 }}%</span>
+          </div>
+          <p v-if="cli.ejecutivo" class="tip-muted">Ejecutivo: {{ cli.ejecutivo }} · Edición {{ slot.edicion }}</p>
+        </div>
+      </div>
+      <!-- Aviso vendido 100% a un cliente -->
+      <div v-else-if="isSold" class="tip-sale">
         <p class="tip-company">{{ slot.empresa }}</p>
         <p class="tip-muted">Ejecutivo: {{ slot.ejecutivo }} · Edición {{ slot.edicion }}</p>
       </div>
+      <!-- Aviso libre -->
       <p v-else class="tip-sale tip-free">Libre en la edición {{ slot.edicion }}</p>
 
       <dl class="tip-facts">
@@ -122,16 +142,22 @@ onBeforeUnmount(() => {
           <dt>Tipo</dt>
           <dd>Bonificación</dd>
         </div>
+        <div v-if="isShared">
+          <dt>Modalidad</dt>
+          <dd>Compartido (50% / 50%)</dd>
+        </div>
       </dl>
 
       <div class="tip-history">
         <p>{{ historial }}</p>
         <p v-if="slot.ventaPosterior" class="tip-next">
           Ya vendido en la Ed. {{ slot.ventaPosterior.edicion }} a {{ slot.ventaPosterior.empresa }}
+          <template v-if="slot.ventaPosterior.compartido"> (compartido)</template>
         </p>
         <p v-if="slot.ventaAnterior" class="tip-muted">
           Venta anterior: {{ slot.ventaAnterior.empresa }} · Ed. {{ slot.ventaAnterior.edicion }}
-          ({{ slot.ventaAnterior.ejecutivo }})
+          <template v-if="slot.ventaAnterior.compartido"> (compartido)</template>
+          <template v-if="slot.ventaAnterior.ejecutivo"> ({{ slot.ventaAnterior.ejecutivo }})</template>
         </p>
       </div>
 
@@ -146,6 +172,8 @@ onBeforeUnmount(() => {
   z-index: 50;
   width: 300px;
   max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
   pointer-events: none;
   background: var(--paper-raised);
   color: var(--ink);
@@ -208,6 +236,40 @@ onBeforeUnmount(() => {
 .is-free.tip--bottom::after {
   background: var(--portal-accent-soft);
   border-color: var(--portal-accent-soft);
+}
+
+.is-shared .tip-head {
+  background: var(--color-shared, #15803d);
+  color: #fff;
+}
+
+.is-shared.tip--bottom::after {
+  background: var(--color-shared, #15803d);
+  border-color: var(--color-shared, #15803d);
+}
+
+.tip-shared-client:not(:first-child) {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px dashed var(--line);
+}
+
+.tip-shared-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.tip-pct-badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--color-shared, #15803d);
+  background: var(--color-shared-soft, #dcfce7);
+  padding: 1px 6px;
+  border-radius: 2px;
 }
 
 .tip-swatch {

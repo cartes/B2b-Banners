@@ -12,6 +12,7 @@ const props = defineProps({
 })
 
 const isSold = computed(() => props.slot.status === 'vendido')
+const isShared = computed(() => props.slot.status === 'compartido')
 const dims = computed(() => props.slot.dims ?? { w: 300, h: 250 })
 
 const shape = computed(() => {
@@ -25,6 +26,10 @@ const shape = computed(() => {
 const label = computed(() => props.slot.label ?? props.slot.formato)
 
 const summary = computed(() => {
+  if (isShared.value) {
+    const nombres = props.slot.clientes?.map((c) => `${c.empresa} (${c.porcentaje}%)`).join(' y ')
+    return `${label.value}, ${dims.value.w}×${dims.value.h}px, compartido al 50%: ${nombres}`
+  }
   const estado = isSold.value ? `vendido a ${props.slot.empresa}` : 'disponible'
   return `${label.value}, ${dims.value.w}×${dims.value.h}px, ${estado}`
 })
@@ -36,7 +41,7 @@ const isActive = computed(() => active.value?.slot === props.slot)
 <template>
   <div
     class="ad"
-    :class="[`ad--${shape}`, isSold ? 'is-sold' : 'is-free', { 'is-dimmed': dimmed }]"
+    :class="[`ad--${shape}`, isShared ? 'is-shared' : isSold ? 'is-sold' : 'is-free', { 'is-dimmed': dimmed }]"
     :style="{ width: `${dims.w}px`, aspectRatio: `${dims.w} / ${dims.h}` }"
     :aria-label="summary"
     :aria-describedby="isActive ? 'ad-tooltip' : undefined"
@@ -47,11 +52,29 @@ const isActive = computed(() => active.value?.slot === props.slot)
     @focus="show(slot, $event.currentTarget, note)"
     @blur="hide(slot)"
   >
-    <span class="ad-label">{{ label }}<template v-if="slot.isBonus"> · Bonificación</template></span>
-    <span class="ad-main">
+    <span class="ad-label">
+      {{ label }}
+      <template v-if="slot.isBonus"> · Bonificación</template>
+      <span v-if="isShared" class="ad-shared-badge">50% / 50%</span>
+    </span>
+
+    <!-- Si es compartido (2 clientes): división 50/50 -->
+    <div v-if="isShared" class="ad-shared-split" :class="`ad-shared-split--${shape}`">
+      <div v-for="(cli, idx) in slot.clientes" :key="idx" class="ad-shared-client">
+        <div class="ad-shared-top">
+          <span class="ad-company">{{ cli.empresa }}</span>
+          <span v-if="shape !== 'strip'" class="ad-pct-pill">{{ cli.porcentaje ?? 50 }}%</span>
+        </div>
+        <span v-if="shape !== 'strip' && cli.ejecutivo" class="ad-exec">{{ cli.ejecutivo }}</span>
+      </div>
+    </div>
+
+    <!-- Si no es compartido (vendido 100% o disponible) -->
+    <span v-else class="ad-main">
       <span class="ad-company">{{ isSold ? slot.empresa : 'Disponible' }}</span>
       <span v-if="isSold && shape !== 'strip'" class="ad-exec">{{ slot.ejecutivo }}</span>
     </span>
+
     <span class="ad-dims">{{ dims.w }}×{{ dims.h }}<template v-if="note"> · {{ note }}</template></span>
   </div>
 </template>
@@ -77,6 +100,12 @@ const isActive = computed(() => active.value?.slot === props.slot)
   color: #fff;
 }
 
+/* Aviso compartido: color verde distintivo solicitado */
+.ad.is-shared {
+  background: var(--color-shared, #15803d);
+  color: #fff;
+}
+
 .ad.is-free {
   color: var(--portal-accent-ink);
   background: repeating-linear-gradient(
@@ -95,6 +124,12 @@ const isActive = computed(() => active.value?.slot === props.slot)
   cursor: default;
 }
 
+.ad.is-shared:hover,
+.ad.is-shared:focus-visible {
+  outline: 3px solid var(--color-shared-ink, #14532d);
+  outline-offset: 2px;
+}
+
 .ad.is-dimmed {
   opacity: 0.22;
 }
@@ -106,6 +141,17 @@ const isActive = computed(() => active.value?.slot === props.slot)
   text-transform: uppercase;
   opacity: 0.85;
   line-height: 1.2;
+}
+
+.ad-shared-badge {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 4px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 2px;
+  font-size: 8px;
+  letter-spacing: 0.05em;
+  font-family: var(--font-mono);
 }
 
 .ad-main {
@@ -140,6 +186,56 @@ const isActive = computed(() => active.value?.slot === props.slot)
   opacity: 0.75;
 }
 
+/* Distribución compartida (50% / 50%) */
+.ad-shared-split {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.ad-shared-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.ad-pct-pill {
+  font-size: 9px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  background: rgba(255, 255, 255, 0.25);
+  padding: 1px 4px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+/* Skyscraper vertical (120x600): división vertical 50% / 50% */
+.ad-shared-split--tall {
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.ad-shared-split--tall .ad-shared-client {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+  padding: 10px 0;
+  gap: 3px;
+}
+
+.ad-shared-split--tall .ad-shared-client:not(:first-child) {
+  border-top: 1px dashed rgba(255, 255, 255, 0.4);
+}
+
+.ad-shared-split--tall .ad-company {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
 /* Banners apaisados: todo en una fila. */
 .ad--wide {
   flex-direction: row;
@@ -164,6 +260,42 @@ const isActive = computed(() => active.value?.slot === props.slot)
   font-size: 15px;
 }
 
+.ad-shared-split--wide {
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+}
+
+.ad-shared-split--wide .ad-shared-client {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ad-shared-split--wide .ad-shared-client:not(:first-child) {
+  border-left: 1px dashed rgba(255, 255, 255, 0.4);
+  padding-left: 16px;
+}
+
+/* Formatos tipo caja (Medium Rectangle) */
+.ad-shared-split--box {
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+
+.ad-shared-split--box .ad-shared-client {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ad-shared-split--box .ad-shared-client:not(:first-child) {
+  border-top: 1px dashed rgba(255, 255, 255, 0.4);
+  padding-top: 8px;
+}
+
 /* Leaderboard móvil 350×50 y similares: una sola línea. */
 .ad--strip {
   flex-direction: row;
@@ -186,6 +318,32 @@ const isActive = computed(() => active.value?.slot === props.slot)
 .ad--strip .ad-label {
   font-size: 9px;
   max-width: 110px;
+}
+
+.ad-shared-split--strip {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.ad-shared-split--strip .ad-shared-client {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ad-shared-split--strip .ad-company {
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ad-shared-split--strip .ad-shared-client:not(:first-child) {
+  border-left: 1px dashed rgba(255, 255, 255, 0.4);
+  padding-left: 8px;
 }
 
 .ad--tall {

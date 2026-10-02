@@ -89,7 +89,10 @@ const activeTab = ref(0)
                 :aria-selected="i === activeTab"
                 @click="activeTab = i"
               >
-                <span class="dh-tab-dot" :class="tab.slot.status === 'vendido' ? 'is-sold' : 'is-free'" />
+                <span
+                  class="dh-tab-dot"
+                  :class="tab.slot.status === 'compartido' ? 'is-shared' : tab.slot.status === 'vendido' ? 'is-sold' : 'is-free'"
+                />
                 {{ tab.name }}
               </button>
             </div>
@@ -293,6 +296,11 @@ const activeTab = ref(0)
 
 .dh-tab-dot.is-sold {
   background: currentColor;
+}
+
+.dh-tab-dot.is-shared {
+  background: var(--color-shared, #15803d);
+  border-color: var(--color-shared, #15803d);
 }
 
 .dh-tabad {

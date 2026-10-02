@@ -138,6 +138,58 @@ function extractProductos(xml) {
  * @param {number} n - Cantidad de ediciones recientes a conservar por tipo de producto.
  * @returns {{ resultado: Array<Object>, ultimasPorTipo: Object.<string, Array<number>> }}
  */
+/**
+ * Normaliza cadenas de formato y ubicación para comparación consistente.
+ * @param {string} val
+ * @returns {string}
+ */
+function normalizarClavePosicion(val) {
+    return String(val ?? "")
+        .toUpperCase()
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+/**
+ * Detecta si en una misma posición (portal, edición, formato y ubicación)
+ * existen dos o más clientes distintos (ej. dos clientes ocupando 50% cada uno).
+ * Si se detectan clientes distintos, enriquece cada registro con:
+ * - compartido: true
+ * - porcentaje: e.g. 50
+ * - clientesCompartidos: lista de empresas únicas en dicha posición
+ * - totalClientes: cantidad de clientes distintos
+ *
+ * @param {Array<Object>} productos - Lista de productos.
+ * @returns {Array<Object>} Misma lista enriquecida.
+ */
+function detectarAvisosCompartidos(productos) {
+    const grupos = new Map();
+
+    for (const p of productos) {
+        const key = `${p.Tipo_Producto}|||${p.Edicion}|||${normalizarClavePosicion(p.Formato)}|||${normalizarClavePosicion(p.Ubicacion)}`;
+        if (!grupos.has(key)) grupos.set(key, []);
+        grupos.get(key).push(p);
+    }
+
+    for (const items of grupos.values()) {
+        const empresasUnicas = [...new Set(items.map((i) => String(i.Empresa ?? "").trim()).filter(Boolean))];
+        const esCompartido = empresasUnicas.length > 1;
+
+        for (const item of items) {
+            item.compartido = esCompartido;
+            if (esCompartido) {
+                item.porcentaje = Math.round(100 / items.length);
+                item.clientesCompartidos = empresasUnicas;
+                item.totalClientes = empresasUnicas.length;
+            } else {
+                item.porcentaje = 100;
+            }
+        }
+    }
+
+    return productos;
+}
+
 function topNPorTipo(productos, n) {
     // 1. Filtrar productos con número de edición numérico y menor a 1900
     const validos = productos.filter(
@@ -161,6 +213,9 @@ function topNPorTipo(productos, n) {
     const resultado = validos
         .filter((p) => ultimasPorTipo[p.Tipo_Producto]?.includes(+p.Edicion))
         .sort((a, b) => b.Edicion - a.Edicion);
+
+    // 5. Detectar avisos compartidos entre clientes distintos en una misma posición
+    detectarAvisosCompartidos(resultado);
 
     return { resultado, ultimasPorTipo };
 }
