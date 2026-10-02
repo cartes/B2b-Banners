@@ -6,9 +6,14 @@ export const SECTIONS = [
   { id: 'movil-interior', label: 'Móvil · Interior', short: 'Interior' },
   { id: 'newsletter', label: 'Newsletter', short: 'Newsletter' },
   { id: 'intersticial', label: 'Intersticial', short: 'Intersticial' },
-  { id: 'especiales', label: 'Especiales y servicios', short: 'Especiales' },
-  { id: 'anteriores', label: 'Formatos anteriores', short: 'Anteriores' },
+  { id: 'especiales', label: 'Formatos especiales', short: 'Especiales' },
 ]
+
+export function isFormatoAnterior(formatoRaw) {
+  const f = String(formatoRaw).toUpperCase().trim()
+  const base = f.replace(/^BONIFICACION\s+/, '')
+  return /^PORTAL-(DESKTOP|MOVIL)/.test(base)
+}
 
 /**
  * Clasifica un Formato crudo del ERP en una sección de página y detecta
@@ -23,18 +28,22 @@ export function classifyFormato(formatoRaw) {
   const base = isBonus ? f.replace(/^BONIFICACION\s+/, '') : f
 
   // PORTAL-DESKTOP-* / PORTAL-MOVIL-* (posiciones A-E, Big/Full Skyscraper)
-  // son del diseño previo de los sitios: ya no existen en las páginas
-  // publicadas y quedan solo como histórico.
-  let section = 'especiales'
-  if (/^PORTAL-(DESKTOP|MOVIL)/.test(base)) section = 'anteriores'
+  // son del diseño previo de los sitios y ya no se muestran en la interfaz.
+  let section = null
+  if (/^PORTAL-(DESKTOP|MOVIL)/.test(base)) section = null
   else if (base.includes('INTERSTICIAL')) section = 'intersticial'
   else if (base.startsWith('NEWSLETTER') || base.startsWith('PORTAL-NEWSLETTER')) section = 'newsletter'
+  else if (base.includes('CONTENIDO AUSPICIADO')) section = 'especiales'
   else if (base.includes('MOVIL-HOME')) section = 'movil-home'
   else if (base.includes('MOVIL-INTERIOR')) section = 'movil-interior'
   else if (base.includes('DESKTOP-HOME')) section = 'desktop-home'
   else if (base.includes('DESKTOP-INTERIOR')) section = 'desktop-interior'
 
   return { section, isBonus }
+}
+
+export function isContenidoAuspiciado(formatoRaw) {
+  return String(formatoRaw).toUpperCase().includes('CONTENIDO AUSPICIADO')
 }
 
 // Medidas reales tomadas del media kit (px). Solo se declaran las que están

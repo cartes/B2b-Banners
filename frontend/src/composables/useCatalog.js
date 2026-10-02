@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { fetchProductos } from '@/api/productos'
-import { classifyFormato, lookupDims } from '@/config/formats'
+import { classifyFormato, isContenidoAuspiciado, isFormatoAnterior, lookupDims } from '@/config/formats'
 import { pagePositions, slotKey } from '@/config/layouts'
 
 // Estado a nivel de módulo: un único fetch del histórico completo,
@@ -56,7 +56,9 @@ export function usePortalInventory(portal, edicionElegida) {
     for (const p of Object.values(positions)) layoutByKey.set(slotKey(p.formato, p.ubicacion), p)
   }
 
-  const productos = computed(() => raw.value.filter((p) => p.Tipo_Producto === portal.tipoProducto))
+  const productos = computed(() =>
+    raw.value.filter((p) => p.Tipo_Producto === portal.tipoProducto && !isFormatoAnterior(p.Formato)),
+  )
 
   // Ediciones del portal, de la más nueva a la más antigua, con cuántos
   // avisos tiene cada una. Las más recientes suelen estar en venta y traer
@@ -78,6 +80,7 @@ export function usePortalInventory(portal, edicionElegida) {
 
     const inventario = new Map()
     for (const p of productos.value) {
+      if (isContenidoAuspiciado(p.Formato)) continue
       const key = slotKey(p.Formato, p.Ubicacion)
       if (!inventario.has(key)) inventario.set(key, { formato: p.Formato, ubicacion: p.Ubicacion, enHistorico: true })
     }
@@ -89,6 +92,7 @@ export function usePortalInventory(portal, edicionElegida) {
     // Ventas por posición en todo el histórico agrupadas por edición
     const historial = new Map()
     for (const p of productos.value) {
+      if (isContenidoAuspiciado(p.Formato)) continue
       const key = slotKey(p.Formato, p.Ubicacion)
       if (Number(p.Edicion) === Number(edicion.value)) {
         if (!ventasEdicionPorKey.has(key)) ventasEdicionPorKey.set(key, [])
@@ -101,7 +105,7 @@ export function usePortalInventory(portal, edicionElegida) {
       edMap.get(edNum).push(p)
     }
 
-    return [...inventario]
+    const slotsInventario = [...inventario]
       .map(([key, { formato, ubicacion, enHistorico }]) => {
         const ventas = ventasEdicionPorKey.get(key) ?? []
 
@@ -162,7 +166,44 @@ export function usePortalInventory(portal, edicionElegida) {
             : null,
         }
       })
-      .sort((a, b) => a.formato.localeCompare(b.formato, 'es') || ordenarUbicacion(a.ubicacion, b.ubicacion))
+
+    // Contenido auspiciado no es un espacio único compartido: cada registro
+    // del ERP representa una publicación distinta, aunque la ubicación sea
+    // siempre "Única". Se conserva un slot por fila de la edición elegida.
+    const ocurrencias = new Map()
+    const contenidosAuspiciados = productos.value
+      .filter((p) => Number(p.Edicion) === Number(edicion.value) && isContenidoAuspiciado(p.Formato))
+      .map((p) => {
+        const empresa = p.Empresa?.trim() || null
+        const ejecutivo = p.Ejecutivo?.trim() || null
+        const baseId = [slotKey(p.Formato, p.Ubicacion), empresa, ejecutivo].join('|||').toUpperCase()
+        const ocurrencia = ocurrencias.get(baseId) ?? 0
+        ocurrencias.set(baseId, ocurrencia + 1)
+
+        return {
+          id: `contenido-auspiciado|||${baseId}|||${ocurrencia}`,
+          formato: p.Formato,
+          ubicacion: p.Ubicacion,
+          section: 'especiales',
+          isBonus: classifyFormato(p.Formato).isBonus,
+          label: 'Contenido auspiciado',
+          dims: lookupDims(p.Formato),
+          enHistorico: true,
+          status: 'vendido',
+          compartido: false,
+          clientes: [{ empresa, ejecutivo, porcentaje: 100 }],
+          empresa,
+          ejecutivo,
+          edicion: edicion.value,
+          edicionesVendidas: 1,
+          ventaAnterior: null,
+          ventaPosterior: null,
+        }
+      })
+
+    return [...slotsInventario, ...contenidosAuspiciados].sort(
+      (a, b) => a.formato.localeCompare(b.formato, 'es') || ordenarUbicacion(a.ubicacion, b.ubicacion) || String(a.id).localeCompare(String(b.id), 'es'),
+    )
   })
 
   // Por página: clave de posición (lb, sb1, mr3...) → slot del inventario.
@@ -180,9 +221,8 @@ export function usePortalInventory(portal, edicionElegida) {
 
   const placedIds = computed(() => new Set(slots.value.filter((s) => layoutByKey.has(s.id)).map((s) => s.id)))
 
-  // Los formatos del diseño anterior no cuentan: ya no se pueden vender.
   const summary = computed(() => {
-    const vigentes = slots.value.filter((s) => s.section !== 'anteriores')
+    const vigentes = slots.value.filter((s) => s.section)
     const total = vigentes.length
     const compartidos = vigentes.filter((s) => s.status === 'compartido').length
     const soloVendidos = vigentes.filter((s) => s.status === 'vendido').length

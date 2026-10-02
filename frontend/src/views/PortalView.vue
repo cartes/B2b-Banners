@@ -126,8 +126,8 @@ const newsletter = computed(() => {
   return slots.value.filter((s) => s.section === 'newsletter')
 })
 
-// Intersticial, especiales y formatos anteriores no son posiciones de
-// página: se filtran de verdad como una lista.
+// Intersticial y especiales no son posiciones de página: se filtran de verdad
+// como una lista.
 const listGroups = computed(() =>
   visibleSections.value
     .filter((s) => !SPATIAL_SECTIONS.has(s.id))
@@ -252,10 +252,6 @@ const noResults = computed(() => {
 
       <section v-for="group in listGroups" :key="group.section.id" class="section-block">
         <h2 class="section-title">{{ sectionMeta(group.section.id).label }}</h2>
-        <p v-if="group.section.id === 'anteriores'" class="section-note">
-          Posiciones del diseño previo del sitio (A–E, Big y Full Skyscraper). Ya no existen en las páginas
-          publicadas y no se cuentan en el total de avisos.
-        </p>
         <div class="slot-grid">
           <SlotCard v-for="slot in group.slots" :key="slot.id" :slot="slot" />
         </div>
@@ -444,12 +440,6 @@ const noResults = computed(() => {
   border-bottom: 1px solid var(--line);
 }
 
-.section-note {
-  margin-bottom: var(--space-3);
-  font-size: 13px;
-  color: var(--ink-soft);
-  max-width: 70ch;
-}
 
 .phones {
   display: flex;
