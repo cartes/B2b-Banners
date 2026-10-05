@@ -20,7 +20,17 @@ const props = defineProps({
 })
 
 // useCatalog gestiona la consulta a /api/productos (ver src/composables/useCatalog.js y src/api/productos.js)
-const { status, error, load } = useCatalog()
+const {
+  status,
+  error,
+  load,
+  refresh,
+  isRefreshing,
+  lastUpdated,
+  formattedLastUpdated,
+  lastUpdatedTitle,
+  exactTime,
+} = useCatalog()
 
 // App.vue remonta esta vista al cambiar de portal (:key en RouterView),
 // así que portalId es estable durante el ciclo de vida del componente.
@@ -152,33 +162,67 @@ const noResults = computed(() => {
         <div>
           <h1>{{ portal.name }}</h1>
           <p class="portal-tagline">{{ portal.tagline }} &middot; {{ portal.domain }}</p>
-          <div v-if="ediciones.length" class="edition-picker">
-            <button
-              type="button"
-              class="edition-step"
-              :disabled="edicionIndex >= ediciones.length - 1"
-              aria-label="Edición anterior"
-              @click="moverEdicion(1)"
-            >
-              &lsaquo;
-            </button>
-            <label class="edition-select">
-              <span>Edición</span>
-              <select v-model.number="edicionModel">
-                <option v-for="(e, i) in ediciones" :key="e.numero" :value="e.numero">
-                  {{ e.numero }} · {{ e.avisos }} {{ e.avisos === 1 ? 'aviso' : 'avisos' }}{{ i === 0 ? ' · más reciente' : '' }}
-                </option>
-              </select>
-            </label>
-            <button
-              type="button"
-              class="edition-step"
-              :disabled="edicionIndex <= 0"
-              aria-label="Edición siguiente"
-              @click="moverEdicion(-1)"
-            >
-              &rsaquo;
-            </button>
+          <div v-if="ediciones.length" class="edition-row">
+            <div class="edition-picker">
+              <button
+                type="button"
+                class="edition-step"
+                :disabled="edicionIndex >= ediciones.length - 1"
+                aria-label="Edición anterior"
+                @click="moverEdicion(1)"
+              >
+                &lsaquo;
+              </button>
+              <label class="edition-select">
+                <span>Edición</span>
+                <select v-model.number="edicionModel">
+                  <option v-for="(e, i) in ediciones" :key="e.numero" :value="e.numero">
+                    {{ e.numero }} · {{ e.avisos }} {{ e.avisos === 1 ? 'aviso' : 'avisos' }}{{ i === 0 ? ' · más reciente' : '' }}
+                  </option>
+                </select>
+              </label>
+              <button
+                type="button"
+                class="edition-step"
+                :disabled="edicionIndex <= 0"
+                aria-label="Edición siguiente"
+                @click="moverEdicion(-1)"
+              >
+                &rsaquo;
+              </button>
+            </div>
+
+            <div v-if="lastUpdated" class="catalog-freshness" :title="lastUpdatedTitle">
+              <span class="freshness-dot" :class="{ 'is-refreshing': isRefreshing }" />
+              <span class="freshness-text">
+                <template v-if="isRefreshing">Actualizando ventas…</template>
+                <template v-else>Consultado {{ formattedLastUpdated }}</template>
+              </span>
+              <button
+                type="button"
+                class="freshness-btn"
+                :disabled="isRefreshing"
+                title="Actualizar datos de ventas ahora"
+                aria-label="Actualizar datos de ventas"
+                @click="refresh"
+              >
+                <svg
+                  class="freshness-icon"
+                  :class="{ 'is-spinning': isRefreshing }"
+                  viewBox="0 0 24 24"
+                  width="12"
+                  height="12"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                </svg>
+                <span>Actualizar</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -186,11 +230,16 @@ const noResults = computed(() => {
       <InventoryStats v-if="status === 'ready' && summary.total" :summary="summary" />
     </header>
 
+    <div v-if="error && status === 'ready'" class="sync-banner-warning">
+      <span>No se pudo actualizar el catálogo ({{ error }}). Mostrando la última consulta de las {{ exactTime }}.</span>
+      <button type="button" @click="refresh">Reintentar</button>
+    </div>
+
     <p v-if="status === 'loading'" class="state-msg">Cargando avisos…</p>
 
     <div v-else-if="status === 'error'" class="state-msg state-error">
       <p>No se pudo cargar el catálogo: {{ error }}</p>
-      <button type="button" @click="load">Reintentar</button>
+      <button type="button" @click="() => load({ force: true })">Reintentar</button>
     </div>
 
     <p v-else-if="status === 'ready' && !summary.total" class="state-msg">
@@ -312,12 +361,133 @@ const noResults = computed(() => {
   font-size: 14px;
 }
 
+.edition-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
 .edition-picker {
   display: inline-flex;
   align-items: stretch;
-  margin-top: var(--space-3);
   border: 1px solid var(--line-strong);
   background: var(--paper-raised);
+}
+
+.catalog-freshness {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-soft);
+  background: var(--paper-raised);
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.freshness-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #16a34a;
+  flex-shrink: 0;
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.freshness-dot.is-refreshing {
+  background: #2563eb;
+  animation: pulse-freshness 1s infinite alternate ease-in-out;
+}
+
+@keyframes pulse-freshness {
+  from {
+    transform: scale(0.85);
+    opacity: 0.6;
+  }
+  to {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+}
+
+.freshness-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: var(--space-1);
+  padding: 2px 7px;
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.freshness-btn:hover:not(:disabled) {
+  background: var(--paper);
+  border-color: var(--ink);
+}
+
+.freshness-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.freshness-icon.is-spinning {
+  animation: spin 800ms linear infinite;
+}
+
+.sync-banner-warning {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+  background: #fef2f2;
+  border: 1px solid #f87171;
+  color: #991b1b;
+  font-size: 13px;
+  border-radius: var(--radius);
+}
+
+.sync-banner-warning button {
+  padding: 4px 10px;
+  background: #fff;
+  border: 1px solid #f87171;
+  border-radius: var(--radius);
+  color: #991b1b;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sync-banner-warning button:hover {
+  background: #fee2e2;
+}
+
+@media (prefers-color-scheme: dark) {
+  .sync-banner-warning {
+    background: #450a0a;
+    border-color: #991b1b;
+    color: #fecaca;
+  }
+  .sync-banner-warning button {
+    background: #7f1d1d;
+    border-color: #b91c1c;
+    color: #fff;
+  }
+  .sync-banner-warning button:hover {
+    background: #991b1b;
+  }
 }
 
 .edition-select {
